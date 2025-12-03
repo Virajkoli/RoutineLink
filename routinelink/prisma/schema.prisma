@@ -1,0 +1,75 @@
+// Prisma schema for RoutineLink
+// Using Vercel Postgres as the database provider
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model User {
+  id        String       @id @default(cuid())
+  username  String       @unique
+  password  String       // Hashed password
+  role      String       // "admin" | "friend"
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  tasks     Task[]
+  stats     DailyStats[]
+  projects  Project[]
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  name      String
+  color     String   @default("#6366f1")
+  userId    String?  // null means shared project
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks     Task[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  dueDate     DateTime?
+  priority    Int       @default(4) // 1-4, 1 being highest priority
+  labels      String[]
+  projectId   String?
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdBy   String
+  user        User      @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  
+  // Sharing fields
+  isShared    Boolean   @default(false) // Visible to both users
+  assignedTo  String?   // Can assign task to the other user
+  
+  // Recurrence fields
+  isRecurring   Boolean   @default(false)
+  recurrence    String?   // "daily" | "weekly" | "monthly" | null
+  lastCompleted DateTime? // Track when last completed for recurring tasks
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model DailyStats {
+  id             String   @id @default(cuid())
+  userId         String
+  date           DateTime @db.Date
+  completedCount Int      @default(0)
+  streak         Int      @default(0)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, date])
+}
